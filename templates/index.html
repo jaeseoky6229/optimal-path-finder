@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>와따가다리</title>
+
+  <link rel="stylesheet" href="/static/app.css" />
+
+  <!-- XLSX (엑셀 읽기) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- Kakao Map SDK: appkey는 config.json에서 주입 -->
+  <script
+    type="text/javascript"
+    src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ KAKAO_JS_API_KEY }}"
+  ></script>
+</head>
+
+<body>
+  <div class="app">
+    <div class="topbar">
+      <h1 class="appTitle">와따가다리</h1>
+      <div class="status" id="status">점검 대상을 선택하세요.</div>
+    </div>
+
+    <div class="layout">
+      <!-- LEFT: Map -->
+      <div class="left">
+        <div class="mapWrap">
+          <div id="legend">
+            <div class="title">일정 범례</div>
+            <div id="legendItems"></div>
+            <div class="footer" id="legendFooter"></div>
+          </div>
+          <div id="map"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Panels -->
+      <div class="right">
+        <!-- 1) 선택 패널 -->
+        <div class="resultPanel" id="selectPanel" style="display:block;">
+          <div class="resultStickyHeader">1) 점검 대상 선택</div>
+          <div class="resultWrap">
+            <div class="row">
+              <label>관할청</label>
+              <select id="officeFilter">
+                <option value="">전체</option>
+              </select>
+            </div>
+
+            <div class="row">
+              <label>검색</label>
+              <input id="bridgeSearch" type="text" placeholder="교량명 / 주소" style="flex:1;" />
+            </div>
+
+            <div class="row">
+              <button id="selectAllBridges">현재 조건 전체선택</button>
+              <button id="clearSelectedBridges">선택해제</button>
+              <span class="muted" id="selectedCountText">선택 0개</span>
+            </div>
+
+            <div id="bridgeList" style="border:1px solid var(--border); border-radius:10px; overflow:auto; max-height:420px; background:#fff;"></div>
+
+            <div class="row" style="margin-top:12px;">
+              <button id="applySelection">선택 완료 → 옵션 설정</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2) 옵션 패널 -->
+        <div class="resultPanel" id="optionsPanel" style="display:none;">
+          <div class="resultStickyHeader">2) 옵션 설정</div>
+          <div class="resultWrap">
+            <div class="row">
+              <label>출발지(사무실)</label>
+              <input
+                id="depotAddress"
+                type="text"
+                value="서울특별시 동작구 신대방동 보라매로5가길 24"
+                placeholder="예: 서울특별시 ..."
+                style="flex:1;"
+              />
+            </div>
+
+            <div class="row">
+              <label>시작 날짜(Day1)</label>
+              <input id="startDate" type="date" />
+              <label style="margin-left:10px;">출장 일수</label>
+              <input id="tripDays" type="number" min="1" max="30" value="7" style="width:90px;" />
+            </div>
+
+            <!-- 근무시간 설정 -->
+            <div class="inlineCard" style="margin-top:10px;">
+              <div class="workBlockTitle">근무시간(일자별)</div>
+
+              <div class="row" style="margin-top:6px;">
+                <label>
+                  <input id="useBulkWorkTime" type="checkbox" />
+                  근무시간 일괄 적용
+                </label>
+              </div>
+
+              <div class="row" id="bulkWorkTimeBox" style="display:none;">
+                <label>시작</label>
+                <select id="bulkWorkStart"></select>
+                <label>끝</label>
+                <select id="bulkWorkEnd"></select>
+                <span class="hint muted">일괄 적용 시 모든 Day에 동일 적용</span>
+              </div>
+
+              <div class="workGrid" id="workGrid">
+                <div></div>
+                <div class="hdr">시작</div>
+                <div class="hdr">끝</div>
+              </div>
+            </div>
+
+            <!-- 점검시간 설정 -->
+            <div class="inlineCard" style="margin-top:10px;">
+              <div class="workBlockTitle">점검시간(분)</div>
+
+              <div class="row" style="margin-top:6px;">
+                <label>
+                  <input id="useBulkInspect" type="checkbox" />
+                  점검시간 일괄 적용
+                </label>
+                <input id="bulkInspectMin" type="number" min="1" step="1" value="60" style="width:110px;" />
+                <span class="hint muted">일괄 적용 OFF면 교량별로 입력</span>
+              </div>
+
+              <div class="inlineCard" id="perBridgeInspectCard" style="margin-top:10px;">
+                <div class="workBlockTitle">교량별 점검시간</div>
+                <div id="perBridgeInspectBox"></div>
+              </div>
+            </div>
+
+            <!-- ✅ NEW: 필수/마감 설정 (여기가 핵심 추가) -->
+            <div class="inlineCard" style="margin-top:10px;">
+              <div class="workBlockTitle">필수 점검 / 마감 Day</div>
+              <div class="hint muted" style="margin-bottom:8px;">
+                필수로 지정하면 반드시 일정에 포함되어야 하며, 마감 Day를 설정하면 해당 Day 이내에 배정됩니다.
+              </div>
+              <div id="perBridgeMandatoryBox"></div>
+            </div>
+
+            <!-- route_cache -->
+            <div class="inlineCard" style="margin-top:10px;">
+              <div class="workBlockTitle">경로 캐시(route_cache)</div>
+              <div class="row">
+                <label>
+                  <input id="useRouteCache" type="checkbox" checked />
+                  <span id="cacheLabelText">route_cache 사용(ON)</span>
+                </label>
+              </div>
+              <div class="row">
+                <label>캐시 파일</label>
+                <input id="routeCachePath" type="text" placeholder="data/route_cache.json" style="flex:1;" />
+              </div>
+              <div class="hint muted">캐시 ON이면 동일 좌표쌍의 경로/시간을 재사용합니다.</div>
+            </div>
+
+            <!-- 실행 버튼 -->
+            <div class="row" style="margin-top:12px;">
+              <button id="runOptimize">일정 최적화 실행</button>
+              <button id="backToSelect" type="button">← 선택으로</button>
+            </div>
+
+            <div class="row" style="margin-top:8px; display:none;">
+              <input id="excelFile" type="file" accept=".xlsx" />
+              <span class="hint muted">엑셀 업로드는 지도 표시(지오코딩)용</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3) 결과 패널 -->
+        <div class="resultPanel" id="resultPanel" style="display:none;">
+          <div class="resultStickyHeader">3) 최적화 결과</div>
+          <div class="resultWrap">
+            <div class="row">
+              <button id="goHomeBtn" type="button">처음으로</button>
+              <button id="saveResultBtn" type="button">결과 저장(HTML)</button>
+              <button id="clearMap" type="button">새로고침</button>
+            </div>
+
+            <div id="result">-</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
