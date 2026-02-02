@@ -48,6 +48,7 @@
 2) 최적화 실행  
 3) Day 1 ~ Day N 일정과 경로 확인  
 4) “처음으로”로 초기화 후 재실행 가능
+5) (필요 시)결과 저장
 
 ---
 
@@ -55,7 +56,7 @@
 
 교량 목록은 아래 엑셀 파일을 수정하여 갱신합니다.
 
-- 경로: `main_program_internal/data/bridge_database.xlsx`
+- 경로: `_internal/data/bridge_database.xlsx`
 
 권장:
 - 위도/경도, 교량명, 주소 등 **필수 컬럼 형식**을 유지
@@ -66,9 +67,8 @@
 ## 5) 폴더 구조(요약)
 
 - `main_program.exe` : 실행 파일
-- `main_program_internal/` : 실행에 필요한 리소스/데이터
-- `data/` : (프로젝트 구성에 따라) 입력 데이터/캐시 저장 위치
-- `templates/`, `static/` : 웹 UI 리소스
+- `_internal/` : 실행에 필요한 리소스/데이터
+- `_internal/data/` : (프로젝트 구성에 따라) 입력 데이터/캐시 저장 위치
 
 ---
 
