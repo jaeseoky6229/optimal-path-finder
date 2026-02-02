@@ -1,39 +1,3 @@
-"""
-반영 내용:
-- 출장 가능 일자 근무 시작/끝을 day_windows_json으로 입력받아 적용
-- Day별 허용시간 = (끝-시작) 분
-- 최대 30일까지만 배정, 입력한 출장 가능 일수로 진행, 초과는 unscheduled
-- 일괄적용 체크 시 점검시간 전체 덮어쓰기
-- Day별 start_time 반영한 end_time 계산
-
-- ✅ 최적화 알고리즘(복합 휴리스틱):
-  - 전역 순서 후보: (NN + 랜덤 NN 멀티스타트) -> (선택)2-opt
-  - day split: DP로 연속 구간 분할
-  - 후보 평가 목적함수(작을수록 좋음):
-    1) scheduled_count 최대화  -> -scheduled_count 최소화
-    2) used_days 최소화
-    3) last_day_total 최소화   (✅ depot 최종 복귀 포함)
-    4) total_move 최소화       (✅ depot 최종 복귀 이동 포함)
-
-- ✅ 정책(중요):
-  - 매일 depot 복귀 X, 다음날은 전날 마지막 위치에서 출발
-  - ✅ 최종 depot 복귀는 필수 + 하드 제약
-    - 마지막 day에 복귀까지 못 넣으면, 다음날 "복귀만 하는 day"로 미룸(가능하면)
-
-- ✅ 재현성/일관성:
-  - 시간(이동시간/도착시각/제약검사/total)은 100% time_mat 기준
-  - kakao_route_edge()는 폴리라인(path)만 획득(표시용), duration은 사용하지 않음
-
-- ✅ NEW (자동 선택):
-  - 선택 교량의 관할청(office)이 2개 이상이면 GA 사용 (dp_split 미사용)
-  - 단일 관할청이면 기존 휴리스틱+DP 사용
-
-- ✅ NEW (필수/마감):
-  - 클라이언트에서 mandatory_rules(bridge_id별 required/deadline_day)를 받아
-    DP split 단계에서 필수/마감 Day를 하드 제약으로 강제 (dp_split.py 수정본 연결)
-  - 결과 schedule에 mandatory_meta를 포함해 프론트에서 경고 표시 가능
-"""
-
 import math
 import os, json
 import sys
