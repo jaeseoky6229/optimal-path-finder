@@ -1,4 +1,5 @@
 # optimal-path-finder(최적 경로 서비스 프로그램 개발)
+<img width="1893" height="885" alt="image" src="https://github.com/user-attachments/assets/9e16662b-ef16-46f8-bc58-08b09763442e" />
 
 교량(점검 대상) 목록을 기반으로 **일자별 최적 점검 경로**를 계산하고, 지도에서 경로를 시각화하는 내부용 도구입니다.  
 (카카오 지도/길찾기 API 사용)
